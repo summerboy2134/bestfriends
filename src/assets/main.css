@@ -1,0 +1,44 @@
+@import './base.css';
+
+/* 重置全局样式 */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+#app {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f7fa;
+}
+
+/* Element Plus 样式修复 */
+.el-container {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.el-header {
+  padding: 0;
+}
+
+.el-main {
+  width: 100%;
+  max-width: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .el-main {
+    padding: 10px;
+  }
+}
