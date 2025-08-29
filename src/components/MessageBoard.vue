@@ -61,6 +61,13 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showMessageBoard = false">关闭</el-button>
+          <el-button 
+            type="danger" 
+            :disabled="messages.length === 0"
+            @click="clearMessages"
+          >
+            清空留言
+          </el-button>
         </div>
       </template>
     </el-dialog>
@@ -68,8 +75,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { API_BASE_URL } from '@/api/config'
 
 const props = defineProps({
   memberId: {
@@ -108,7 +116,32 @@ const mockMessages = [
 ]
 
 // 方法
-const loadMessages = () => {
+const loadMessages = async () => {
+  try {
+    // 尝试从数据库加载留言
+    const response = await fetch(`${API_BASE_URL}/members/${props.memberId}/messages`)
+    
+    if (response.ok) {
+      const dbMessages = await response.json()
+      console.log('从数据库加载留言:', dbMessages.length, '条')
+      
+      if (dbMessages.length > 0) {
+        messages.value = dbMessages.map(msg => ({
+          id: msg.id,
+          content: msg.content,
+          time: new Date(msg.created_at)
+        }))
+        
+        // 同步到本地存储
+        saveMessages()
+        return
+      }
+    }
+  } catch (error) {
+    console.log('数据库加载失败，使用本地存储:', error.message)
+  }
+  
+  // 如果数据库加载失败，从本地存储加载
   const storageKey = `messages_${props.memberId}`
   const storedMessages = localStorage.getItem(storageKey)
   
@@ -118,6 +151,7 @@ const loadMessages = () => {
       time: new Date(msg.time)
     }))
   } else {
+    // 如果本地也没有，使用模拟数据
     messages.value = [...mockMessages]
     saveMessages()
   }
@@ -128,37 +162,142 @@ const saveMessages = () => {
   localStorage.setItem(storageKey, JSON.stringify(messages.value))
 }
 
-const sendMessage = () => {
+const sendMessage = async () => {
   if (!newMessage.value.trim()) return
   
-  const message = {
-    id: Date.now(),
-    content: newMessage.value.trim(),
-    time: new Date()
-  }
+  const messageContent = newMessage.value.trim()
   
-  // 添加到列表开头 (最新的在最上面)
-  messages.value.unshift(message)
-  
-  // 限制最多20条留言
-  if (messages.value.length > 20) {
-    messages.value = messages.value.slice(0, 20)
-  }
-  
-  // 保存到本地存储
-  saveMessages()
-  
-  // 清空输入
-  newMessage.value = ''
-  
-  ElMessage.success('留言发送成功')
-  
-  // 滚动到顶部显示新留言
-  nextTick(() => {
-    if (messageListRef.value) {
-      messageListRef.value.scrollTop = 0
+  try {
+    // 调用后端API添加留言到数据库
+    const response = await fetch(`${API_BASE_URL}/members/${props.memberId}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: messageContent
+      })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
-  })
+    
+    const result = await response.json()
+    console.log('数据库添加留言结果:', result)
+    
+    const message = {
+      id: result.id || Date.now(),
+      content: messageContent,
+      time: new Date()
+    }
+    
+    // 添加到列表开头 (最新的在最上面)
+    messages.value.unshift(message)
+    
+    // 限制最多20条留言
+    if (messages.value.length > 20) {
+      messages.value = messages.value.slice(0, 20)
+    }
+    
+    // 保存到本地存储
+    saveMessages()
+    
+    // 清空输入
+    newMessage.value = ''
+    
+    ElMessage.success('留言发送成功（已同步到数据库）')
+    
+    // 滚动到顶部显示新留言
+    nextTick(() => {
+      if (messageListRef.value) {
+        messageListRef.value.scrollTop = 0
+      }
+    })
+  } catch (apiError) {
+    console.error('API调用失败:', apiError)
+    
+    // API失败时仍然添加到本地，但给出提示
+    const message = {
+      id: Date.now(),
+      content: messageContent,
+      time: new Date()
+    }
+    
+    messages.value.unshift(message)
+    
+    if (messages.value.length > 20) {
+      messages.value = messages.value.slice(0, 20)
+    }
+    
+    saveMessages()
+    newMessage.value = ''
+    
+    ElMessage.warning('留言已保存到本地，但数据库同步失败')
+    
+    nextTick(() => {
+      if (messageListRef.value) {
+        messageListRef.value.scrollTop = 0
+      }
+    })
+  }
+}
+
+const clearMessages = async () => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要清空 ${props.memberName} 的所有留言吗？此操作不可恢复。`,
+      '确认清空',
+      {
+        confirmButtonText: '清空',
+        cancelButtonText: '取消',
+        type: 'warning',
+      }
+    )
+    
+    console.log(`清空成员 ${props.memberName} (ID: ${props.memberId}) 的留言`)
+    console.log('清空前留言数量:', messages.value.length)
+    
+    try {
+      // 调用后端API清空数据库中的留言
+      const response = await fetch(`${API_BASE_URL}/messages/member/${props.memberId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      console.log('数据库清空结果:', result)
+      
+      // 清空内存中的留言
+      messages.value = []
+      
+      // 清空localStorage
+      const storageKey = `messages_${props.memberId}`
+      localStorage.removeItem(storageKey)
+      
+      console.log('清空后留言数量:', messages.value.length)
+      console.log('localStorage已清除:', !localStorage.getItem(storageKey))
+      
+      ElMessage.success('留言已清空（数据库已同步）')
+    } catch (apiError) {
+      console.error('API调用失败:', apiError)
+      
+      // API失败时仍然清空本地数据，但给出提示
+      messages.value = []
+      const storageKey = `messages_${props.memberId}`
+      localStorage.removeItem(storageKey)
+      
+      ElMessage.warning('已清空本地留言，但数据库同步失败')
+    }
+  } catch {
+    console.log('用户取消清空操作')
+  }
 }
 
 const formatTime = (time) => {
@@ -181,9 +320,24 @@ const formatTime = (time) => {
   }
 }
 
+// 监听localStorage变化（其他页面的清空操作）
+const handleStorageChange = (e) => {
+  const storageKey = `messages_${props.memberId}`
+  if (e.key === storageKey && e.newValue === null) {
+    console.log('检测到外部清空操作，同步更新留言列表')
+    messages.value = []
+  }
+}
+
 // 生命周期
 onMounted(() => {
   loadMessages()
+  // 监听storage事件（跨页面/标签页同步）
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
 })
 </script>
 

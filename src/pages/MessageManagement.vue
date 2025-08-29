@@ -102,6 +102,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useMemberStore } from '@/stores/members'
+import { API_BASE_URL } from '@/api/config'
 
 const memberStore = useMemberStore()
 
@@ -228,11 +229,49 @@ const clearMemberMessages = async (member) => {
       }
     )
     
-    const storageKey = `messages_${member.id}`
-    localStorage.removeItem(storageKey)
-    allMemberMessages.value[member.id] = []
+    console.log(`开始清空成员 ${member.name} (ID: ${member.id}) 的留言`)
     
-    ElMessage.success(`已清空 ${member.name} 的留言`)
+    try {
+      // 调用后端API清空数据库中的留言
+      const response = await fetch(`${API_BASE_URL}/messages/member/${member.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      console.log('数据库清空结果:', result)
+      
+      // 清空本地存储
+      const storageKey = `messages_${member.id}`
+      localStorage.removeItem(storageKey)
+      allMemberMessages.value[member.id] = []
+      
+      // 如果当前正在查看该成员的留言，同时清空详情视图
+      if (selectedMember.value && selectedMember.value.id === member.id) {
+        selectedMessages.value = []
+      }
+      
+      ElMessage.success(`已清空 ${member.name} 的留言（数据库已同步）`)
+    } catch (apiError) {
+      console.error('API调用失败:', apiError)
+      
+      // API失败时仍然清空本地存储，但给出提示
+      const storageKey = `messages_${member.id}`
+      localStorage.removeItem(storageKey)
+      allMemberMessages.value[member.id] = []
+      
+      if (selectedMember.value && selectedMember.value.id === member.id) {
+        selectedMessages.value = []
+      }
+      
+      ElMessage.warning(`已清空 ${member.name} 的本地留言，但数据库同步失败`)
+    }
   } catch {
     // 用户取消清空
   }
@@ -251,22 +290,67 @@ const clearAllMessages = async () => {
     )
     
     clearing.value = true
+    console.log('开始清空所有留言...')
     
-    // 清空所有localStorage中的留言数据
-    memberStore.members.forEach(member => {
-      const storageKey = `messages_${member.id}`
-      localStorage.removeItem(storageKey)
-    })
-    
-    // 重置内存中的数据
-    allMemberMessages.value = {}
-    loadAllMessages()
-    
-    clearing.value = false
-    ElMessage.success('所有留言已清空')
+    try {
+      // 调用后端API清空数据库中的所有留言
+      const response = await fetch(`${API_BASE_URL}/messages/all`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      console.log('数据库清空结果:', result)
+      
+      // 清空所有localStorage中的留言数据
+      memberStore.members.forEach(member => {
+        const storageKey = `messages_${member.id}`
+        console.log(`清空成员 ${member.name} (ID: ${member.id}) 的留言存储`)
+        localStorage.removeItem(storageKey)
+      })
+      
+      // 重置内存中的数据
+      Object.keys(allMemberMessages.value).forEach(memberId => {
+        allMemberMessages.value[memberId] = []
+      })
+      
+      // 清空详情视图
+      selectedMessages.value = []
+      
+      // 强制重新加载数据
+      loadAllMessages()
+      
+      clearing.value = false
+      console.log('清空完成，当前留言总数:', totalMessages.value)
+      ElMessage.success('所有留言已清空（数据库已同步）')
+    } catch (apiError) {
+      console.error('API调用失败:', apiError)
+      
+      // API失败时仍然清空本地存储，但给出提示
+      memberStore.members.forEach(member => {
+        const storageKey = `messages_${member.id}`
+        localStorage.removeItem(storageKey)
+      })
+      
+      Object.keys(allMemberMessages.value).forEach(memberId => {
+        allMemberMessages.value[memberId] = []
+      })
+      
+      selectedMessages.value = []
+      loadAllMessages()
+      
+      clearing.value = false
+      ElMessage.warning('已清空本地留言，但数据库同步失败')
+    }
   } catch {
     clearing.value = false
-    // 用户取消清空
+    console.log('用户取消清空操作')
   }
 }
 
