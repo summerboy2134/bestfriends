@@ -229,7 +229,7 @@ const clearMemberMessages = async (member) => {
       }
     )
     
-    console.log(`开始清空成员 ${member.name} (ID: ${member.id}) 的留言`)
+
     
     try {
       // 调用后端API清空数据库中的留言

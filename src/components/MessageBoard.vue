@@ -123,7 +123,7 @@ const loadMessages = async () => {
     
     if (response.ok) {
       const dbMessages = await response.json()
-      console.log('从数据库加载留言:', dbMessages.length, '条')
+
       
       if (dbMessages.length > 0) {
         messages.value = dbMessages.map(msg => ({
@@ -138,7 +138,7 @@ const loadMessages = async () => {
       }
     }
   } catch (error) {
-    console.log('数据库加载失败，使用本地存储:', error.message)
+
   }
   
   // 如果数据库加载失败，从本地存储加载
@@ -184,7 +184,7 @@ const sendMessage = async () => {
     }
     
     const result = await response.json()
-    console.log('数据库添加留言结果:', result)
+
     
     const message = {
       id: result.id || Date.now(),
@@ -215,7 +215,7 @@ const sendMessage = async () => {
       }
     })
   } catch (apiError) {
-    console.error('API调用失败:', apiError)
+
     
     // API失败时仍然添加到本地，但给出提示
     const message = {
@@ -255,8 +255,7 @@ const clearMessages = async () => {
       }
     )
     
-    console.log(`清空成员 ${props.memberName} (ID: ${props.memberId}) 的留言`)
-    console.log('清空前留言数量:', messages.value.length)
+
     
     try {
       // 调用后端API清空数据库中的留言
@@ -272,7 +271,7 @@ const clearMessages = async () => {
       }
       
       const result = await response.json()
-      console.log('数据库清空结果:', result)
+
       
       // 清空内存中的留言
       messages.value = []
@@ -281,12 +280,11 @@ const clearMessages = async () => {
       const storageKey = `messages_${props.memberId}`
       localStorage.removeItem(storageKey)
       
-      console.log('清空后留言数量:', messages.value.length)
-      console.log('localStorage已清除:', !localStorage.getItem(storageKey))
+
       
       ElMessage.success('留言已清空（数据库已同步）')
     } catch (apiError) {
-      console.error('API调用失败:', apiError)
+  
       
       // API失败时仍然清空本地数据，但给出提示
       messages.value = []
@@ -296,7 +294,7 @@ const clearMessages = async () => {
       ElMessage.warning('已清空本地留言，但数据库同步失败')
     }
   } catch {
-    console.log('用户取消清空操作')
+
   }
 }
 
@@ -324,7 +322,7 @@ const formatTime = (time) => {
 const handleStorageChange = (e) => {
   const storageKey = `messages_${props.memberId}`
   if (e.key === storageKey && e.newValue === null) {
-    console.log('检测到外部清空操作，同步更新留言列表')
+
     messages.value = []
   }
 }

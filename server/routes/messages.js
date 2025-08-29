@@ -2,26 +2,6 @@ const express = require('express')
 const db = require('../database/db')
 const router = express.Router()
 
-// 删除留言
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params
-    
-    // 验证留言是否存在
-    const message = await db.get('SELECT id FROM messages WHERE id = ?', [id])
-    if (!message) {
-      return res.status(404).json({ error: '留言不存在' })
-    }
-    
-    await db.run('DELETE FROM messages WHERE id = ?', [id])
-    
-    res.json({ message: '留言删除成功' })
-  } catch (error) {
-    console.error('删除留言失败:', error)
-    res.status(500).json({ error: '删除留言失败' })
-  }
-})
-
 // 获取所有留言（管理员功能）
 router.get('/', async (req, res) => {
   try {
@@ -69,7 +49,7 @@ router.delete('/all', async (req, res) => {
     
     res.json({ 
       message: '所有留言清空成功',
-      deletedCount: result.changes
+      deletedCount: result.changes || 0
     })
   } catch (error) {
     console.error('清空所有留言失败:', error)
@@ -97,6 +77,26 @@ router.get('/stats', async (req, res) => {
   } catch (error) {
     console.error('获取留言统计失败:', error)
     res.status(500).json({ error: '获取留言统计失败' })
+  }
+})
+
+// 删除留言（放在最后，避免与其他路由冲突）
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    
+    // 验证留言是否存在
+    const message = await db.get('SELECT id FROM messages WHERE id = ?', [id])
+    if (!message) {
+      return res.status(404).json({ error: '留言不存在' })
+    }
+    
+    await db.run('DELETE FROM messages WHERE id = ?', [id])
+    
+    res.json({ message: '留言删除成功' })
+  } catch (error) {
+    console.error('删除留言失败:', error)
+    res.status(500).json({ error: '删除留言失败' })
   }
 })
 

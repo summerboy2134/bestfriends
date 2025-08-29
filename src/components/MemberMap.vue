@@ -168,7 +168,7 @@ const initMap = async () => {
       window._AMapSecurityConfig = {
         securityJsCode: AMAP_SECURITY_JS_CODE
       }
-      console.log('成员地图：已设置高德地图安全密钥')
+
     }
 
     // 加载高德地图API
@@ -194,7 +194,7 @@ const initMap = async () => {
     await addMarkers(AMap)
     
   } catch (error) {
-    console.error('地图加载失败:', error)
+
     
     // 显示错误信息给用户
     const errorMsg = error.message || '未知错误'
@@ -265,7 +265,7 @@ const addMarkers = async (AMap) => {
         marker.setMap(map.value)
         return marker
       } catch (error) {
-        console.error(`创建成员 ${member.name} 标记失败:`, error)
+
         return null
       }
     } else {
@@ -295,8 +295,61 @@ const createMemberMarkerIcon = (member) => {
   const ctx = canvas.getContext('2d')
   
   return new Promise((resolve) => {
-    // 直接显示姓名首字母，避免外部图片加载问题
-    resolve(createNameMarker())
+    // 如果有头像，尝试加载头像；否则显示姓名首字母
+    if (member.avatar && member.avatar.trim()) {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      
+      img.onload = () => {
+        try {
+          // 绘制圆形头像
+          ctx.clearRect(0, 0, 40, 40)
+          ctx.save()
+          
+          // 创建圆形裁剪路径
+          ctx.beginPath()
+          ctx.arc(20, 20, 18, 0, 2 * Math.PI)
+          ctx.clip()
+          
+          // 绘制头像
+          ctx.drawImage(img, 2, 2, 36, 36)
+          
+          // 恢复上下文并添加边框
+          ctx.restore()
+          ctx.strokeStyle = 'white'
+          ctx.lineWidth = 3
+          ctx.beginPath()
+          ctx.arc(20, 20, 18, 0, 2 * Math.PI)
+          ctx.stroke()
+          
+          resolve(canvas.toDataURL())
+        } catch (error) {
+
+          resolve(createNameMarker())
+        }
+      }
+      
+      img.onerror = () => {
+
+        resolve(createNameMarker())
+      }
+      
+      // 设置图片源，支持相对路径和绝对路径
+      if (member.avatar.startsWith('http') || member.avatar.startsWith('//')) {
+        img.src = member.avatar
+      } else if (member.avatar.startsWith('/uploads/')) {
+        // 使用当前域名构建完整URL
+        const protocol = window.location.protocol
+        const hostname = window.location.hostname
+        const port = window.location.hostname === 'localhost' ? ':3001' : ''
+        img.src = `${protocol}//${hostname}${port}${member.avatar}`
+      } else {
+        img.src = member.avatar
+      }
+    } else {
+      // 没有头像时显示首字母
+      resolve(createNameMarker())
+    }
     
     function createNameMarker() {
       // 根据个人介绍设置颜色
@@ -310,6 +363,9 @@ const createMemberMarkerIcon = (member) => {
         if (bio.includes('总监') || bio.includes('经理') || bio.includes('架构师')) return '#722ed1'
         return '#1890ff'
       }
+      
+      // 清空画布
+      ctx.clearRect(0, 0, 40, 40)
       
       // 绘制圆形背景
       ctx.fillStyle = getColorByBio(member.bio || '')
