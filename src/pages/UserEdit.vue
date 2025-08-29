@@ -236,7 +236,10 @@ const editForm = ref({
 
 // 表单验证规则
 const formRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
+  name: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { validator: validateName, trigger: 'blur' }
+  ]
 }
 
 // 常用标签
@@ -247,6 +250,29 @@ const hasChanges = computed(() => {
   if (!originalData.value) return false
   return JSON.stringify(editForm.value) !== JSON.stringify(originalData.value)
 })
+
+// 验证函数
+const validateName = async (rule, value, callback) => {
+  if (!value) {
+    return callback()  // 空值由required规则处理
+  }
+  
+  // 如果名字没有改变，则跳过检查
+  if (originalData.value && originalData.value.name === value) {
+    return callback()
+  }
+  
+  // 检查是否有重名
+  const existingMember = memberStore.members.find(member => 
+    member.name === value && member.id !== editForm.value.id
+  )
+  
+  if (existingMember) {
+    callback(new Error('该姓名已存在，请使用其他姓名'))
+  } else {
+    callback()
+  }
+}
 
 // 方法
 const loadMemberData = async () => {

@@ -63,6 +63,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: '姓名为必填字段' })
     }
     
+    // 检查姓名是否已存在
+    const existingMember = await db.get('SELECT id FROM members WHERE name = ?', [name])
+    if (existingMember) {
+      return res.status(400).json({ error: '该姓名已存在，请使用其他姓名' })
+    }
+    
     const result = await db.run(`
       INSERT INTO members (name, avatar, bio, location, coordinates, wechat, tags, join_date)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -112,8 +118,14 @@ router.put('/:id', async (req, res) => {
     }
     
     // 验证必填字段
-    if (!name || !location) {
-      return res.status(400).json({ error: '姓名和地区为必填字段' })
+    if (!name) {
+      return res.status(400).json({ error: '姓名为必填字段' })
+    }
+    
+    // 检查姓名是否已被其他成员使用
+    const nameConflict = await db.get('SELECT id FROM members WHERE name = ? AND id != ?', [name, id])
+    if (nameConflict) {
+      return res.status(400).json({ error: '该姓名已存在，请使用其他姓名' })
     }
     
     await db.run(`

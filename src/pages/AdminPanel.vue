@@ -345,6 +345,7 @@ const selectedGroupLeaderId = ref(null)
 // 表单数据
 const memberForm = ref({
   name: '',
+  originalName: '', // 用于编辑时跟踪原始姓名
   email: '',
   position: '',
   company: '',
@@ -362,7 +363,10 @@ const memberForm = ref({
 
 // 表单验证规则
 const formRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
+  name: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { validator: validateName, trigger: 'blur' }
+  ]
 }
 
 // 常用标签
@@ -401,6 +405,29 @@ const currentGroupLeaderName = computed(() => {
   const leader = memberStore.getGroupLeader()
   return leader ? leader.name : '暂无群主'
 })
+
+// 验证函数
+const validateName = async (rule, value, callback) => {
+  if (!value) {
+    return callback()  // 空值由required规则处理
+  }
+  
+  // 如果是编辑模式且名字没有改变，则跳过检查
+  if (isEditing.value && memberForm.value.originalName === value) {
+    return callback()
+  }
+  
+  // 检查是否有重名
+  const existingMember = memberStore.members.find(member => 
+    member.name === value && member.id !== memberForm.value.id
+  )
+  
+  if (existingMember) {
+    callback(new Error('该姓名已存在，请使用其他姓名'))
+  } else {
+    callback()
+  }
+}
 
 // 方法
 const showAddDialog = () => {
@@ -454,6 +481,7 @@ const confirmSetGroupLeader = async () => {
 const resetForm = () => {
   memberForm.value = {
     name: '',
+    originalName: '',
     location: '',
     avatar: '',
     bio: '',
