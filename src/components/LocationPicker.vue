@@ -149,8 +149,8 @@ let pickerMap = null
 let marker = null
 let geocoder = null
 
-// 高德地图Key
-const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || 'e5bf6ad4ff2373f292289eadab4b227b'
+// 高德地图Key - 测试用的公共Key，生产环境请使用自己的Key
+const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || '0b5deb5b12b5ff43beaed2aced1b8e7e'
 
 // 地址格式化函数 - 精确到区级
 const formatAddressToDistrict = (fullAddress, regeocode = null) => {
@@ -192,10 +192,28 @@ const quickLocations = [
   { name: '杭州西湖', coordinates: [120.1551, 30.2741], address: '浙江省杭州市西湖区' }
 ]
 
+// 简单的坐标到城市映射，用作fallback
+const getCityFromCoordinates = (lng, lat) => {
+  if (lng >= 120.8 && lng <= 122.2 && lat >= 30.7 && lat <= 31.9) {
+    return '上海市'
+  } else if (lng >= 115.5 && lng <= 117.5 && lat >= 39.0 && lat <= 41.0) {
+    return '北京市'
+  } else if (lng >= 113.0 && lng <= 115.0 && lat >= 22.0 && lat <= 24.0) {
+    return '深圳市'
+  } else if (lng >= 119.8 && lng <= 120.8 && lat >= 30.0 && lat <= 30.8) {
+    return '杭州市'
+  } else if (lng >= 112.8 && lng <= 114.8 && lat >= 22.5 && lat <= 24.5) {
+    return '广州市'
+  } else {
+    return `位置 (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+  }
+}
+
 // 方法
 const initGeocoder = async () => {
   if (!geocoder) {
     try {
+      console.log('初始化地理编码器，API Key:', AMAP_KEY)
       const AMap = await AMapLoader.load({
         key: AMAP_KEY,
         version: '2.0',
@@ -205,8 +223,10 @@ const initGeocoder = async () => {
         radius: 1000,
         extensions: "all"
       })
+      console.log('地理编码器初始化成功')
     } catch (error) {
       console.error('初始化地理编码失败:', error)
+      throw error
     }
   }
 }
@@ -289,13 +309,20 @@ const getCurrentLocation = async () => {
 
 const reverseGeocode = async (coordinates) => {
   try {
+    console.log('开始定位逆地理编码:', coordinates)
     await initGeocoder()
-    if (!geocoder) return
+    if (!geocoder) {
+      console.error('地理编码器未初始化')
+      ElMessage.error('地理编码服务初始化失败')
+      return
+    }
     
     geocoder.getAddress(coordinates, (status, result) => {
+      console.log('定位逆地理编码结果:', status, result)
       if (status === 'complete' && result.regeocode) {
         const fullAddress = result.regeocode.formattedAddress
         const districtAddress = formatAddressToDistrict(fullAddress, result.regeocode)
+        console.log('定位格式化后的地址:', districtAddress)
         addressInput.value = districtAddress
         
         emit('update:modelValue', districtAddress)
@@ -308,12 +335,25 @@ const reverseGeocode = async (coordinates) => {
         
         ElMessage.success('定位成功')
       } else {
-        ElMessage.warning('逆地理编码失败')
+        console.error('定位逆地理编码失败:', status, result)
+        // 使用fallback地址
+        const fallbackAddress = getCityFromCoordinates(coordinates[0], coordinates[1])
+        addressInput.value = fallbackAddress
+        
+        emit('update:modelValue', fallbackAddress)
+        emit('update:coordinates', coordinates)
+        emit('locationChange', {
+          address: fallbackAddress,
+          coordinates: coordinates,
+          detail: null
+        })
+        
+        ElMessage.success('定位成功（使用近似地址）')
       }
     })
   } catch (error) {
-    console.error('逆地理编码失败:', error)
-    ElMessage.error('地址解析失败')
+    console.error('定位逆地理编码异常:', error)
+    ElMessage.error('地址解析失败: ' + error.message)
   }
 }
 
@@ -441,17 +481,29 @@ const updateMarker = (coordinates) => {
 
 const reverseGeocodeForPicker = async (coordinates) => {
   try {
+    console.log('开始逆地理编码:', coordinates)
     await initGeocoder()
-    if (!geocoder) return
+    if (!geocoder) {
+      console.error('地理编码器未初始化')
+      return
+    }
     
     geocoder.getAddress(coordinates, (status, result) => {
+      console.log('逆地理编码结果:', status, result)
       if (status === 'complete' && result.regeocode) {
         const fullAddress = result.regeocode.formattedAddress
-        selectedAddress.value = formatAddressToDistrict(fullAddress, result.regeocode)
+        const districtAddress = formatAddressToDistrict(fullAddress, result.regeocode)
+        console.log('格式化后的地址:', districtAddress)
+        selectedAddress.value = districtAddress
+      } else {
+        console.error('逆地理编码失败:', status, result)
+        // 使用fallback城市判断
+        selectedAddress.value = getCityFromCoordinates(coordinates[0], coordinates[1])
       }
     })
   } catch (error) {
-    console.error('逆地理编码失败:', error)
+    console.error('逆地理编码异常:', error)
+    selectedAddress.value = `坐标: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
   }
 }
 
@@ -478,10 +530,8 @@ const onMapPickerClosed = () => {
     pickerMap.destroy()
     pickerMap = null
   }
-  // 重置搜索关键词和选中状态
+  // 只重置搜索关键词，保留选中状态直到用户确认或取消
   searchKeyword.value = ''
-  selectedAddress.value = ''
-  selectedCoordinates.value = []
 }
 
 // 监听对话框打开
