@@ -257,6 +257,9 @@ const clearMemberMessages = async (member) => {
         selectedMessages.value = []
       }
       
+      // 刷新统计数据
+      await loadStats()
+      
       ElMessage.success(`已清空 ${member.name} 的留言（数据库已同步）`)
     } catch (apiError) {
       console.error('API调用失败:', apiError)
@@ -324,7 +327,8 @@ const clearAllMessages = async () => {
       selectedMessages.value = []
       
       // 强制重新加载数据
-      loadAllMessages()
+      await loadAllMessages()
+      await loadStats()
       
       clearing.value = false
       console.log('清空完成，当前留言总数:', totalMessages.value)

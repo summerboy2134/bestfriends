@@ -61,13 +61,6 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="showMessageBoard = false">关闭</el-button>
-          <el-button 
-            type="danger" 
-            :disabled="messages.length === 0"
-            @click="clearMessages"
-          >
-            清空留言
-          </el-button>
         </div>
       </template>
     </el-dialog>
