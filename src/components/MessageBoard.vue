@@ -89,25 +89,6 @@ const newMessage = ref('')
 const messageListRef = ref()
 const messages = ref([])
 
-
-const mockMessages = [
-  {
-    id: 1,
-    content: '很高兴认识你！',
-    time: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1天前
-  },
-  {
-    id: 2,
-    content: '期待和你一起合作～',
-    time: new Date(Date.now() - 1000 * 60 * 60 * 2) // 2小时前
-  },
-  {
-    id: 3,
-    content: '技术大佬！',
-    time: new Date(Date.now() - 1000 * 60 * 30) // 30分钟前
-  }
-]
-
 // 方法
 const loadMessages = async () => {
   try {
@@ -144,9 +125,8 @@ const loadMessages = async () => {
       time: new Date(msg.time)
     }))
   } else {
-    // 如果本地也没有，使用模拟数据
-    messages.value = [...mockMessages]
-    saveMessages()
+    // 如果本地也没有数据，保持空数组
+    messages.value = []
   }
 }
 
