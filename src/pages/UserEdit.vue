@@ -234,24 +234,7 @@ const editForm = ref({
   }
 })
 
-// 表单验证规则
-const formRules = {
-  name: [
-    { required: true, message: '请输入姓名', trigger: 'blur' },
-    { validator: validateName, trigger: 'blur' }
-  ]
-}
-
-// 常用标签
-const commonTags = ['技术', '产品', '设计', '运营', '数据', '营销', '管理', '创业', '投资', '教育', '艺术', '音乐', '摄影', '旅行', '运动', '美食', '读书', '电影']
-
-// 计算属性
-const hasChanges = computed(() => {
-  if (!originalData.value) return false
-  return JSON.stringify(editForm.value) !== JSON.stringify(originalData.value)
-})
-
-// 验证函数
+// 验证函数（需要在formRules之前定义）
 const validateName = async (rule, value, callback) => {
   if (!value) {
     return callback()  // 空值由required规则处理
@@ -273,6 +256,23 @@ const validateName = async (rule, value, callback) => {
     callback()
   }
 }
+
+// 表单验证规则
+const formRules = {
+  name: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { validator: validateName, trigger: 'blur' }
+  ]
+}
+
+// 常用标签
+const commonTags = ['技术', '产品', '设计', '运营', '数据', '营销', '管理', '创业', '投资', '教育', '艺术', '音乐', '摄影', '旅行', '运动', '美食', '读书', '电影']
+
+// 计算属性
+const hasChanges = computed(() => {
+  if (!originalData.value) return false
+  return JSON.stringify(editForm.value) !== JSON.stringify(originalData.value)
+})
 
 // 方法
 const loadMemberData = async () => {
