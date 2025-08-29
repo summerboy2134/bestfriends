@@ -236,8 +236,7 @@ const editForm = ref({
 
 // 表单验证规则
 const formRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  location: [{ required: true, message: '请输入地区', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
 }
 
 // 常用标签

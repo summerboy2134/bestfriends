@@ -309,20 +309,6 @@
                 prefix-icon="ChatDotRound"
               />
             </el-col>
-            <el-col :span="8">
-              <el-input 
-                v-model="memberForm.social.github" 
-                placeholder="GitHub用户名"
-                prefix-icon="Link"
-              />
-            </el-col>
-            <el-col :span="8">
-              <el-input 
-                v-model="memberForm.social.linkedin" 
-                placeholder="LinkedIn用户名"
-                prefix-icon="Link"
-              />
-            </el-col>
           </el-row>
         </el-form-item>
       </el-form>
@@ -376,8 +362,7 @@ const memberForm = ref({
 
 // 表单验证规则
 const formRules = {
-  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
-  location: [{ required: true, message: '请输入地区', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入姓名', trigger: 'blur' }]
 }
 
 // 常用标签

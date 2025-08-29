@@ -59,8 +59,8 @@ router.post('/', async (req, res) => {
     const { name, avatar, bio, location, coordinates, tags, joinDate, social } = req.body
     
     // 验证必填字段
-    if (!name || !location) {
-      return res.status(400).json({ error: '姓名和地区为必填字段' })
+    if (!name) {
+      return res.status(400).json({ error: '姓名为必填字段' })
     }
     
     const result = await db.run(`
@@ -70,7 +70,7 @@ router.post('/', async (req, res) => {
       name,
       avatar || '',
       bio || '',
-      location,
+      location || '',
       coordinates ? JSON.stringify(coordinates) : null,
       social?.wechat || '',
       tags ? JSON.stringify(tags) : JSON.stringify([]),
