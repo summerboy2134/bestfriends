@@ -299,7 +299,7 @@ const createMemberMarkerIcon = (member) => {
     if (member.avatar && member.avatar.trim()) {
       const img = new Image()
       img.crossOrigin = 'anonymous'
-      
+
       img.onload = () => {
         try {
           // 绘制圆形头像

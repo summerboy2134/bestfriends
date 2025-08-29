@@ -15,7 +15,11 @@ router.get('/', async (req, res) => {
       isGroupLeader: !!member.is_group_leader,
       social: {
         wechat: member.wechat || ''
-      }
+      },
+      // 优化头像处理 - 如果头像太大，提供一个优化的URL
+      avatar: member.avatar && member.avatar.length > 100000 
+        ? `/api/members/${member.id}/avatar-thumb` 
+        : member.avatar
     }))
     
     res.json({ members: formattedMembers })

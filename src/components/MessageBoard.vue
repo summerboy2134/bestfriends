@@ -18,6 +18,8 @@
       :title="`${memberName} 的留言板`"
       width="350px"
       class="message-dialog"
+      :z-index="3000"
+      append-to-body
     >
       <!-- 留言列表 -->
       <div class="message-list" ref="messageListRef">
@@ -319,6 +321,20 @@ onUnmounted(() => {
 
 .message-dialog :deep(.el-dialog__body) {
   padding: 10px 20px;
+}
+
+.message-dialog :deep(.el-dialog) {
+  margin: 0 auto;
+  position: relative;
+}
+
+.message-dialog :deep(.el-overlay-dialog) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 3000;
 }
 
 .message-list {
