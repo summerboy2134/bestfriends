@@ -76,6 +76,7 @@ const map = ref(null)
 const markers = ref([])
 
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || 'your-amap-key-here'
+const AMAP_SECURITY_JS_CODE = import.meta.env.VITE_AMAP_SECURITY_JS_CODE
 
 // 城市坐标映射（主要城市）
 const cityCoordinates = {
@@ -162,6 +163,14 @@ const initMap = async () => {
       return
     }
     
+    // 配置安全密钥
+    if (AMAP_SECURITY_JS_CODE) {
+      window._AMapSecurityConfig = {
+        securityJsCode: AMAP_SECURITY_JS_CODE
+      }
+      console.log('成员地图：已设置高德地图安全密钥')
+    }
+
     // 加载高德地图API
     const AMap = await AMapLoader.load({
       key: AMAP_KEY,

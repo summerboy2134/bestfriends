@@ -66,6 +66,13 @@
         <div class="picker-info" v-if="selectedAddress">
           <p><strong>选中地址:</strong> {{ selectedAddress }}</p>
           <p><strong>坐标:</strong> {{ selectedCoordinates[0] }}, {{ selectedCoordinates[1] }}</p>
+          <div v-if="selectedAddress.includes('位置 (')" class="api-notice">
+            <small style="color: #909399;">
+              💡 提示：当前使用坐标显示，如需详细地址请在Vercel中配置：<br>
+              • VITE_AMAP_KEY（高德地图API Key）<br>
+              • VITE_AMAP_SECURITY_JS_CODE（安全密钥，2021年12月后申请的Key必需）
+            </small>
+          </div>
         </div>
       </div>
       
@@ -148,9 +155,11 @@ const pickerMapContainer = ref()
 let pickerMap = null
 let marker = null
 let geocoder = null
+let geocoderFailCount = 0  // 记录地理编码失败次数
 
-// 高德地图Key - 测试用的公共Key，生产环境请使用自己的Key
+// 高德地图Key和安全密钥
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || '0b5deb5b12b5ff43beaed2aced1b8e7e'
+const AMAP_SECURITY_JS_CODE = import.meta.env.VITE_AMAP_SECURITY_JS_CODE
 
 // 地址格式化函数 - 精确到区级
 const formatAddressToDistrict = (fullAddress, regeocode = null) => {
@@ -194,19 +203,31 @@ const quickLocations = [
 
 // 简单的坐标到城市映射，用作fallback
 const getCityFromCoordinates = (lng, lat) => {
-  if (lng >= 120.8 && lng <= 122.2 && lat >= 30.7 && lat <= 31.9) {
-    return '上海市'
-  } else if (lng >= 115.5 && lng <= 117.5 && lat >= 39.0 && lat <= 41.0) {
-    return '北京市'
-  } else if (lng >= 113.0 && lng <= 115.0 && lat >= 22.0 && lat <= 24.0) {
-    return '深圳市'
-  } else if (lng >= 119.8 && lng <= 120.8 && lat >= 30.0 && lat <= 30.8) {
-    return '杭州市'
-  } else if (lng >= 112.8 && lng <= 114.8 && lat >= 22.5 && lat <= 24.5) {
-    return '广州市'
+  console.log('🗺️ 判断坐标对应城市:', lng, lat)
+  
+  // 更精确的坐标范围判断，避免重叠
+  let city = ''
+  
+  if (lng >= 121.0 && lng <= 122.0 && lat >= 30.9 && lat <= 31.6) {
+    city = '上海市'
+  } else if (lng >= 116.0 && lng <= 116.8 && lat >= 39.4 && lat <= 40.3) {
+    city = '北京市'
+  } else if (lng >= 113.7 && lng <= 114.6 && lat >= 22.4 && lat <= 22.8) {
+    city = '深圳市'
+  } else if (lng >= 120.0 && lng <= 120.4 && lat >= 30.1 && lat <= 30.4) {
+    city = '杭州市'
+  } else if (lng >= 113.1 && lng <= 113.5 && lat >= 22.9 && lat <= 23.4) {
+    city = '广州市'
+  } else if (lng >= 118.5 && lng <= 119.2 && lat >= 31.8 && lat <= 32.4) {
+    city = '南京市'
+  } else if (lng >= 104.0 && lng <= 104.4 && lat >= 30.4 && lat <= 30.9) {
+    city = '成都市'
   } else {
-    return `位置 (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+    city = `位置 (${lat.toFixed(4)}, ${lng.toFixed(4)})`
   }
+  
+  console.log(`🏙️ 坐标 (${lng.toFixed(4)}, ${lat.toFixed(4)}) 判断为: ${city}`)
+  return city
 }
 
 // 方法
@@ -214,6 +235,16 @@ const initGeocoder = async () => {
   if (!geocoder) {
     try {
       console.log('初始化地理编码器，API Key:', AMAP_KEY)
+      console.log('安全密钥配置:', AMAP_SECURITY_JS_CODE ? '已配置' : '未配置')
+      
+      // 配置安全密钥
+      if (AMAP_SECURITY_JS_CODE) {
+        window._AMapSecurityConfig = {
+          securityJsCode: AMAP_SECURITY_JS_CODE
+        }
+        console.log('已设置高德地图安全密钥')
+      }
+      
       const AMap = await AMapLoader.load({
         key: AMAP_KEY,
         version: '2.0',
@@ -318,9 +349,12 @@ const reverseGeocode = async (coordinates) => {
     }
     
     geocoder.getAddress(coordinates, (status, result) => {
-      console.log('定位逆地理编码结果:', status, result)
+      console.log('定位逆地理编码状态:', status)
+      console.log('定位逆地理编码完整结果:', result)
+      
       if (status === 'complete' && result.regeocode) {
         const fullAddress = result.regeocode.formattedAddress
+        console.log('定位原始地址:', fullAddress)
         const districtAddress = formatAddressToDistrict(fullAddress, result.regeocode)
         console.log('定位格式化后的地址:', districtAddress)
         addressInput.value = districtAddress
@@ -335,9 +369,13 @@ const reverseGeocode = async (coordinates) => {
         
         ElMessage.success('定位成功')
       } else {
-        console.error('定位逆地理编码失败:', status, result)
+        console.error('定位逆地理编码失败 - status:', status)
+        if (result) {
+          console.error('定位错误详情:', result.info || result.message || result)
+        }
         // 使用fallback地址
         const fallbackAddress = getCityFromCoordinates(coordinates[0], coordinates[1])
+        console.log('定位使用fallback地址:', fallbackAddress)
         addressInput.value = fallbackAddress
         
         emit('update:modelValue', fallbackAddress)
@@ -401,6 +439,14 @@ const initPickerMap = async () => {
     if (!pickerMapContainer.value) {
       console.error('地图容器未找到')
       return
+    }
+
+    // 配置安全密钥
+    if (AMAP_SECURITY_JS_CODE) {
+      window._AMapSecurityConfig = {
+        securityJsCode: AMAP_SECURITY_JS_CODE
+      }
+      console.log('地图初始化：已设置高德地图安全密钥')
     }
 
     const AMap = await AMapLoader.load({
@@ -497,13 +543,22 @@ const reverseGeocodeForPicker = async (coordinates) => {
         selectedAddress.value = districtAddress
       } else {
         console.error('逆地理编码失败:', status, result)
+        if (result && result.info && result.info.includes('INVALID_USER_SCODE')) {
+          console.error('API Key无效或缺少安全密钥，请在Vercel中配置：')
+          console.error('1. VITE_AMAP_KEY: 高德地图API Key')
+          console.error('2. VITE_AMAP_SECURITY_JS_CODE: 高德地图安全密钥（2021年12月后申请的Key必需）')
+        }
         // 使用fallback城市判断
-        selectedAddress.value = getCityFromCoordinates(coordinates[0], coordinates[1])
+        const fallbackAddress = getCityFromCoordinates(coordinates[0], coordinates[1])
+        console.log('使用fallback地址:', fallbackAddress)
+        selectedAddress.value = fallbackAddress
       }
     })
   } catch (error) {
     console.error('逆地理编码异常:', error)
-    selectedAddress.value = `坐标: ${coordinates[0].toFixed(6)}, ${coordinates[1].toFixed(6)}`
+    const fallbackAddress = getCityFromCoordinates(coordinates[0], coordinates[1])
+    console.log('异常情况使用fallback地址:', fallbackAddress)
+    selectedAddress.value = fallbackAddress
   }
 }
 
